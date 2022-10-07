@@ -8,5 +8,5 @@ http://blog.xkool.nl/index.php/archives/6/
 
 一键脚本:
 ````
-wget && chmod +x masscan && bash asscan.sh
+wget https://raw.githubusercontent.com/heinu112/scancloudflareip/main/asscan.sh && chmod +x asscan.sh && bash asscan.sh
 ````
