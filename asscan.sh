@@ -21,6 +21,24 @@ fi
 if [ `id -u` != 0 ];then
     echo -e "错误: 仅限 root 用户执行"
 fi
+function installmasscan() {
+if [ $systemcommand = "apt" ];then
+    apt upgrade
+    apt-get install curl clang gcc make libpcap-dev libpcap masscan -y
+else
+    yum install upgrade
+    yum install curl git clang gcc gcc-c++ flex bison make libpcap-dev libpcap -y
+    git clone https://github.com/robertdavidgraham/masscan
+    cd masscan
+    make
+    make install
+    cd ~/
+fi
+echo "已安装masscan"
+echo "有一切问题请手动安装！"
+echo "有一切问题请手动安装！"
+echo "有一切问题请手动安装！"
+}
 if ! [ -x "$(command -v masscan)" ]; then
   echo '检测到masscan未安装'
   echo '安装中..'
@@ -92,25 +110,6 @@ if [ -z "$mode" ]
 then
 	mode=0
 fi
-
-function installmasscan() {
-if [ $systemcommand = "apt" ];then
-    apt upgrade
-    apt-get install curl clang gcc make libpcap-dev libpcap masscan -y
-else
-    yum install upgrade
-    yum install curl git clang gcc gcc-c++ flex bison make libpcap-dev libpcap -y
-    git clone https://github.com/robertdavidgraham/masscan
-    cd masscan
-    make
-    make install
-    cd ~/
-fi
-echo "已安装masscan"
-echo "有一切问题请手动安装！"
-echo "有一切问题请手动安装！"
-echo "有一切问题请手动安装！"
-}
 
 function divsubnet(){
 mask=$5;a=$1;b=$2;c=$3;d=$4;
