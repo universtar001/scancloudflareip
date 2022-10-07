@@ -7,7 +7,5 @@ http://blog.xkool.nl/index.php/archives/6/
 的脚本修改
 
 ````
-bash
 wget && chmod +x masscan && bash asscan.sh
-bash
 ````
