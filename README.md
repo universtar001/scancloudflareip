@@ -7,7 +7,7 @@ http://blog.xkool.nl/index.php/archives/6/
 
 的脚本修改
 
-#一键脚本:
+# 一键脚本:
 ````
 wget https://raw.githubusercontent.com/heinu112/scancloudflareip/main/asscan.sh && chmod +x asscan.sh && bash asscan.sh
 ````
