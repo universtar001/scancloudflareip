@@ -34,6 +34,7 @@ else
     make install
     cd ~/
 fi
+clear
 echo "已安装masscan"
 echo "有一切问题请手动安装！"
 echo "有一切问题请手动安装！"
