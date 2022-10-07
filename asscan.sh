@@ -23,10 +23,11 @@ if [ `id -u` != 0 ];then
 fi
 function installmasscan() {
 if [ $systemcommand = "apt" ];then
-    apt upgrade
+    sudo apt upgrade
+    sudo apt update
     apt-get install curl clang gcc make libpcap-dev libpcap masscan -y
 else
-    yum install upgrade
+    sudo yum install upgrade
     yum install curl git clang gcc gcc-c++ flex bison make libpcap-dev libpcap -y
     git clone https://github.com/robertdavidgraham/masscan
     cd masscan
