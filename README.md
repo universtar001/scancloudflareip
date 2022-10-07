@@ -6,6 +6,7 @@
 http://blog.xkool.nl/index.php/archives/6/
 的脚本修改
 
+一键脚本:
 ````
 wget && chmod +x masscan && bash asscan.sh
 ````
