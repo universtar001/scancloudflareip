@@ -46,19 +46,16 @@ if ! [ -x "$(command -v masscan)" ]; then
   echo '安装中..'
   installmasscan
 fi
-
 echo "本脚需要用root权限执行masscan扫描"
 echo "请自行确认当前是否以root权限运行"
 echo "1.单个AS模式"
 echo "2.批量AS列表模式"
 echo "3.从url获取AS列表模式"
 read -p "请输入模式号(默认模式1):" scanmode
-if [ -z "$scanmode" ]
-then
+if [ -z "$scanmode" ];then
     scanmode=1
 fi
-if [ $scanmode == 1 ]
-then
+if [ $scanmode == 1 ];then
     clear
     echo "当前为单个AS模式"
     read -p "请输入AS号码(默认45102):" asn
@@ -71,8 +68,7 @@ then
     then
         port=443
     fi
-elif [ $scanmode == 2 ]
-then
+elif [ $scanmode == 2 ];then
     clear
     echo "当前为批量AS列表模式"
     echo "待扫描的默认列表文件as.txt格式如下所示"
@@ -84,8 +80,7 @@ then
         echo "文件不存在"
         exit
     fi
-elif [ $scanmode == 3 ]
-then
+elif [ $scanmode == 3 ];then
     clear
     echo "当前为从url获取AS列表模式"
     read -p "请输入AS列表url" url
@@ -101,26 +96,21 @@ fi
 read -p "请设置masscan pps rate(默认10000):" rate
 read -p "请设置curl测试进程数(默认50,最大100):" tasknum
 read -p "是否需要测速[(默认0.否)1.是]:" mode
-if [ -z "$rate" ]
-then
+if [ -z "$rate" ];then
     rate=10000
 fi
-if [ -z "$tasknum" ]
-then
+if [ -z "$tasknum" ];then
     tasknum=50
 fi
-if [ $tasknum -eq 0 ]
-then
+if [ $tasknum -eq 0 ];then
     echo "进程数不能为0,自动设置为默认值"
     tasknum=50
 fi
-if [ $tasknum -gt 100 ]
-then
+if [ $tasknum -gt 100 ];then
     echo "超过最大进程限制,自动设置为最大值"
     tasknum=100
 fi
-if [ -z "$mode" ]
-then
+if [ -z "$mode" ];then
     mode=0
 fi
 
@@ -168,8 +158,7 @@ curl --ipv4 --retry 3 -s https://speed.cloudflare.com/locations | sed -e 's/},{/
 
 function realip(){
 sparrow=$(curl --resolve sparrow.cloudflare.com:$port:$1 https://sparrow.cloudflare.com:$port/ -s --connect-timeout 1 --max-time 2)
-if [ "$sparrow" == "Unauthorized" ]
-then
+if [ "$sparrow" == "Unauthorized" ];then
     echo $1 >> realip.txt
 fi
 }
@@ -179,19 +168,16 @@ declare -i ms
 ip=$i
 curl -A "trace" --retry 2 --resolve www.cloudflare.com:$port:$ip https://www.cloudflare.com:$port/cdn-cgi/trace -s --connect-timeout 2 --max-time 3 -w "timems="%{time_connect}"\n" >> log/$1
 status=$(grep uag=trace log/$1 | wc -l)
-if [ $status == 1 ]
-then
+if [ $status == 1 ];then
     clientip=$(grep ip= log/$1 | cut -f 2- -d'=')
     colo=$(grep colo= log/$1 | cut -f 2- -d'=')
     location=$(grep $colo colo.txt | awk -F"-" '{print $1}' | awk -F"," '{print $1}')
     country=$(grep loc= log/$1 | cut -f 2- -d'=')
     ms=$(grep timems= log/$1 | awk -F"=" '{printf ("%d\n",$2*1000)}')
-    if [[ "$clientip" == "$publicip" ]]
-    then
+    if [[ "$clientip" == "$publicip" ]];then
         clientip=0.0.0.0
         ipstatus=官方
-    elif [[ "$clientip" == "$ip" ]]
-    then
+    elif [[ "$clientip" == "$ip" ]];then
         ipstatus=中转
     else
         ipstatus=隧道
@@ -207,8 +193,7 @@ function speedtest(){
 rm -rf log.txt speed.txt
 curl --resolve speed.cloudflare.com:$2:$1 https://cloudflaremirrors.com:$2/archlinux/iso/latest/archlinux-x86_64.iso -o /dev/null --connect-timeout 2 --max-time 5 -w "HTTPCODE"_%{http_code}"\n"> log.txt 2>&1
 status=$(cat log.txt | grep HTTPCODE | awk -F_ '{print $2}')
-if [ $status == 200 ]
-then
+if [ $status == 200 ];then
     cat log.txt | tr '\r' '\n' | awk '{print $NF}' | sed '1,3d;$d' | grep -v 'k\|M\|received' >> speed.txt
     for i in `cat log.txt | tr '\r' '\n' | awk '{print $NF}' | sed '1,3d;$d' | grep k | sed 's/k//g'`
     do
@@ -229,8 +214,7 @@ then
     max=0
     for i in `cat speed.txt`
     do
-        if [ $i -ge $max ]
-        then
+        if [ $i -ge $max ];then
             max=$i
         fi
     done
@@ -248,23 +232,19 @@ declare -i seqnum
 declare -i n=1
 ipnum=$(grep tcp data.txt | awk '{print $4}' | wc -l)
 seqnum=$tasknum
-if [ $ipnum == 0 ]
-then
+if [ $ipnum == 0 ];then
     echo "当前没有任何IP"
 fi
-if [ $tasknum == 0 ]
-then
+if [ $tasknum == 0 ];then
     tasknum=1
 fi
-if [ $ipnum -lt $tasknum ]
-then
+if [ $ipnum -lt $tasknum ];then
     seqnum=$ipnum
 fi
 trap "exec 6>&-; exec 6<&-;exit 0" 2
 tmp_fifofile="./$$.fifo"
 mkfifo $tmp_fifofile &> /dev/null
-if [ ! $? -eq 0 ]
-then
+if [ ! $? -eq 0 ];then
     mknod $tmp_fifofile p
 fi
 exec 6<>$tmp_fifofile
@@ -290,8 +270,7 @@ echo "RTT IP全部测试完成"
 }
 
 function cloudflarertt(){
-if [ ! -f "realip.txt" ]
-then
+if [ ! -f "realip.txt" ];then
     echo "当前没有任何REAL IP"
 else
     rm -rf rtt.txt log
@@ -301,23 +280,19 @@ else
     declare -i n=1
     ipnum=$(cat realip.txt | wc -l)
     seqnum=$tasknum
-    if [ $ipnum == 0 ]
-    then
+    if [ $ipnum == 0 ];then
         echo "当前没有任何REAL IP"
     fi
-    if [ $tasknum == 0 ]
-    then
+    if [ $tasknum == 0 ];then
         tasknum=1
     fi
-    if [ $ipnum -lt $tasknum ]
-    then
+    if [ $ipnum -lt $tasknum ];then
         seqnum=$ipnum
     fi
     trap "exec 6>&-; exec 6<&-;exit 0" 2
     tmp_fifofile="./$$.fifo"
     mkfifo $tmp_fifofile &> /dev/null
-    if [ ! $? -eq 0 ]
-    then
+    if [ ! $? -eq 0 ];then
         mknod $tmp_fifofile p
     fi
     exec 6<>$tmp_fifofile
@@ -347,26 +322,22 @@ fi
 function main(){
 start=`date +%s`
 publicip=$(curl --ipv4 -s https://www.cloudflare-cn.com/cdn-cgi/trace | grep ip= | cut -f 2- -d'=')
-if [ ! -f "colo.txt" ]
-then
+if [ ! -f "colo.txt" ];then
     echo "生成colo.txt"
     colocation
 else
     echo "colo.txt 已存在,跳过此步骤!"
 fi
-if [ ! -d asn ]
-then
+if [ ! -d asn ];then
     mkdir asn
 fi
-if [ ! -f "asn/$asn" ]
-then
+if [ ! -f "asn/$asn" ];then
     curl -A 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.5005.62 Safari/537.36' -s https://whois.ipip.net/AS$asn | grep /AS$asn/ | awk '{print $2}' | sed -e 's#"##g' | awk -F/ '{print $3"/"$4}' | grep -v :>asn/$asn
     echo "$asn数据下载完毕"
 else
     echo "$asn 已存在,跳过数据下载!"
 fi
-if [ ! -f "asn/$asn-24" ]
-then
+if [ ! -f "asn/$asn-24" ];then
     getip
 else
     echo $asn-24 "已存在,跳过CIDR拆分!"
@@ -378,12 +349,10 @@ echo "开始检测 AS$asn REAL IP有效性"
 cloudflarerealip
 echo "开始检测 AS$asn RTT信息"
 cloudflarertt
-if [ ! -f "rtt.txt" ]
-then
+if [ ! -f "rtt.txt" ];then
     rm -rf log data.txt realip.txt rtt.txt
     echo "当前没有任何有效IP"
-elif [ $mode == 1 ]
-then
+elif [ $mode == 1 ];then
     echo "中转IP,中转端口,回源IP,国家,数据中心,IP类型,网络延迟">AS$asn-$port.csv
     cat rtt.txt>>AS$asn-$port.csv
     echo "AS$asn-$port.csv 已经生成"
@@ -393,15 +362,13 @@ then
         ip=$(echo $i | awk -F, '{print $1}')
         port=$(echo $i | awk -F, '{print $2}')
         clientip=$(echo $i | awk -F, '{print $3}')
-        if [ $clientip != 0.0.0.0 ]
-        then
+        if [ $clientip != 0.0.0.0 ];then
             echo "正在测试 $ip 端口 $port"
             maxspeed=$(speedtest $ip $port)
             maxspeed=$[$maxspeed/1024]
             maxbandwidth=$[$maxspeed/128]
             echo "$ip 等效带宽 $maxbandwidth Mbps 峰值速度 $maxspeed kB/s"
-            if [ $maxspeed == 0 ]
-            then
+            if [ $maxspeed == 0 ];then
                 echo "重新测试 $ip 端口 $port"
                 maxspeed=$(speedtest $ip $port)
                 maxspeed=$[$maxspeed/1024]
@@ -413,8 +380,7 @@ then
             maxspeed=null
             maxbandwidth=null
         fi
-        if [ $maxspeed != 0 ]
-        then
+        if [ $maxspeed != 0 ];then
             echo "$i,$maxbandwidth Mbps,$maxspeed kB/s" | sed -e 's/_/ /g'>>AS$asn-$port-测速.csv
         fi
     done
@@ -430,19 +396,16 @@ end=`date +%s`
 echo "AS$asn-$port 耗时:$[$end-$start]秒"
 }
 
-if [ $scanmode == 1 ]
+if [ $scanmode == 1 ];then
     main
-then
-elif [ $scanmode == 2 ]
-then
+elif [ $scanmode == 2 ];then
     for i in `cat $filename`
     do
         asn=$(echo $i | awk -F: '{print $1}')
         port=$(echo $i | awk -F: '{print $2}')
         main
     done
-elif [ $scanmode == 3 ]
-then
+elif [ $scanmode == 3 ];then
     echo "正在获取AS列表..."
     urltext=`curl -A 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.5005.62 Safari/537.36' -sL $url`
     for i in $urltext
