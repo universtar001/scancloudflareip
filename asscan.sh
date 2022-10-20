@@ -1,4 +1,4 @@
-#!/bin/bash
+ #!/bin/bash
 # asscan 获取 CF 反代节点
 clear
 if [[ -f /etc/redhat-release ]]; then
@@ -199,3 +199,256 @@ then
     rm -rf log/$1
     echo "$ip,$port,$clientip,$country,$location,$ipstatus,$ms ms" >> rtt.txt
 else
+    rm -rf log/$1
+fi
+}
+
+function speedtest(){
+rm -rf log.txt speed.txt
+curl --resolve speed.cloudflare.com:$2:$1 https://cloudflaremirrors.com:$2/archlinux/iso/latest/archlinux-x86_64.iso -o /dev/null --connect-timeout 2 --max-time 5 -w "HTTPCODE"_%{http_code}"\n"> log.txt 2>&1
+status=$(cat log.txt | grep HTTPCODE | awk -F_ '{print $2}')
+if [ $status == 200 ]
+then
+    cat log.txt | tr '\r' '\n' | awk '{print $NF}' | sed '1,3d;$d' | grep -v 'k\|M\|received' >> speed.txt
+    for i in `cat log.txt | tr '\r' '\n' | awk '{print $NF}' | sed '1,3d;$d' | grep k | sed 's/k//g'`
+    do
+        declare -i k
+        k=$i
+        k=k*1024
+        echo $k >> speed.txt
+    done
+    for i in `cat log.txt | tr '\r' '\n' | awk '{print $NF}' | sed '1,3d;$d' | grep M | sed 's/M//g'`
+    do
+        i=$(echo | awk '{print '$i'*10 }')
+        declare -i M
+        M=$i
+        M=M*1024*1024/10
+        echo $M >> speed.txt
+    done
+    declare -i max
+    max=0
+    for i in `cat speed.txt`
+    do
+        if [ $i -ge $max ]
+        then
+            max=$i
+        fi
+    done
+else
+    max=0
+fi
+rm -rf log.txt speed.txt
+echo $max
+}
+
+function cloudflarerealip(){
+rm -rf realip.txt
+declare -i ipnum
+declare -i seqnum
+declare -i n=1
+ipnum=$(grep tcp data.txt | awk '{print $4}' | wc -l)
+seqnum=$tasknum
+if [ $ipnum == 0 ]
+then
+    echo "当前没有任何IP"
+fi
+if [ $tasknum == 0 ]
+then
+    tasknum=1
+fi
+if [ $ipnum -lt $tasknum ]
+then
+    seqnum=$ipnum
+fi
+trap "exec 6>&-; exec 6<&-;exit 0" 2
+tmp_fifofile="./$$.fifo"
+mkfifo $tmp_fifofile &> /dev/null
+if [ ! $? -eq 0 ]
+then
+    mknod $tmp_fifofile p
+fi
+exec 6<>$tmp_fifofile
+rm -f $tmp_fifofile
+for i in `seq $seqnum`;
+do
+    echo >&6
+done
+for i in `grep tcp data.txt | awk '{print $4}' | tr -d '\r'`
+do
+        read -u6;
+        {
+        realip $i;
+        echo >&6
+        }&
+        echo "RTT IP总数 $ipnum 已完成 $n"
+        n=n+1
+done
+wait
+exec 6>&-
+exec 6<&-
+echo "RTT IP全部测试完成"
+}
+
+function cloudflarertt(){
+if [ ! -f "realip.txt" ]
+then
+    echo "当前没有任何REAL IP"
+else
+    rm -rf rtt.txt log
+    mkdir log
+    declare -i ipnum
+    declare -i seqnum
+    declare -i n=1
+    ipnum=$(cat realip.txt | wc -l)
+    seqnum=$tasknum
+    if [ $ipnum == 0 ]
+    then
+        echo "当前没有任何REAL IP"
+    fi
+    if [ $tasknum == 0 ]
+    then
+        tasknum=1
+    fi
+    if [ $ipnum -lt $tasknum ]
+    then
+        seqnum=$ipnum
+    fi
+    trap "exec 6>&-; exec 6<&-;exit 0" 2
+    tmp_fifofile="./$$.fifo"
+    mkfifo $tmp_fifofile &> /dev/null
+    if [ ! $? -eq 0 ]
+    then
+        mknod $tmp_fifofile p
+    fi
+    exec 6<>$tmp_fifofile
+    rm -f $tmp_fifofile
+    for i in `seq $seqnum`;
+    do
+        echo >&6
+    done
+    n=1
+    for i in `cat realip.txt | tr -d '\r'`
+    do
+            read -u6;
+            {
+            rtt $i;
+            echo >&6
+            }&
+            echo "REAL IP总数 $ipnum 已完成 $n"
+            n=n+1
+    done
+    wait
+    exec 6>&-
+    exec 6<&-
+    echo "REAL IP全部测试完成"
+fi
+}
+
+function main(){
+start=`date +%s`
+publicip=$(curl --ipv4 -s https://www.cloudflare-cn.com/cdn-cgi/trace | grep ip= | cut -f 2- -d'=')
+if [ ! -f "colo.txt" ]
+then
+    echo "生成colo.txt"
+    colocation
+else
+    echo "colo.txt 已存在,跳过此步骤!"
+fi
+if [ ! -d asn ]
+then
+    mkdir asn
+fi
+if [ ! -f "asn/$asn" ]
+then
+    curl -A 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.5005.62 Safari/537.36' -s https://whois.ipip.net/AS$asn | grep /AS$asn/ | awk '{print $2}' | sed -e 's#"##g' | awk -F/ '{print $3"/"$4}' | grep -v :>asn/$asn
+    echo "$asn数据下载完毕"
+else
+    echo "$asn 已存在,跳过数据下载!"
+fi
+if [ ! -f "asn/$asn-24" ]
+then
+    getip
+else
+    echo $asn-24 "已存在,跳过CIDR拆分!"
+fi
+echo "开始检测 AS$asn TCP端口 $port 有效性"
+rm -rf paused.conf
+masscan -p $port -iL asn/$asn-24 --wait=3 --rate=$rate -oL data.txt
+echo "开始检测 AS$asn REAL IP有效性"
+cloudflarerealip
+echo "开始检测 AS$asn RTT信息"
+cloudflarertt
+if [ ! -f "rtt.txt" ]
+then
+    rm -rf log data.txt realip.txt rtt.txt
+    echo "当前没有任何有效IP"
+elif [ $mode == 1 ]
+then
+    echo "中转IP,中转端口,回源IP,国家,数据中心,IP类型,网络延迟">AS$asn-$port.csv
+    cat rtt.txt>>AS$asn-$port.csv
+    echo "AS$asn-$port.csv 已经生成"
+    echo "中转IP,中转端口,回源IP,国家,数据中心,IP类型,网络延迟,等效带宽,峰值速度">AS$asn-$port-测速.csv
+    for i in `cat rtt.txt | sed -e 's/ /_/g'`
+    do
+        ip=$(echo $i | awk -F, '{print $1}')
+        port=$(echo $i | awk -F, '{print $2}')
+        clientip=$(echo $i | awk -F, '{print $3}')
+        if [ $clientip != 0.0.0.0 ]
+        then
+            echo "正在测试 $ip 端口 $port"
+            maxspeed=$(speedtest $ip $port)
+            maxspeed=$[$maxspeed/1024]
+            maxbandwidth=$[$maxspeed/128]
+            echo "$ip 等效带宽 $maxbandwidth Mbps 峰值速度 $maxspeed kB/s"
+            if [ $maxspeed == 0 ]
+            then
+                echo "重新测试 $ip 端口 $port"
+                maxspeed=$(speedtest $ip $port)
+                maxspeed=$[$maxspeed/1024]
+                maxbandwidth=$[$maxspeed/128]
+                echo "$ip 等效带宽 $maxbandwidth Mbps 峰值速度 $maxspeed kB/s"
+            fi
+        else
+            echo "跳过测试 $ip 端口 $port"
+            maxspeed=null
+            maxbandwidth=null
+        fi
+        if [ $maxspeed != 0 ]
+        then
+            echo "$i,$maxbandwidth Mbps,$maxspeed kB/s" | sed -e 's/_/ /g'>>AS$asn-$port-测速.csv
+        fi
+    done
+    rm -rf log data.txt realip.txt rtt.txt
+    echo "AS$asn-$port-测速.csv 已经生成"
+else
+    echo "中转IP,中转端口,回源IP,国家,数据中心,IP类型,网络延迟">AS$asn-$port.csv
+    cat rtt.txt>>AS$asn-$port.csv
+    rm -rf log data.txt realip.txt rtt.txt
+    echo "AS$asn-$port.csv 已经生成"
+fi
+end=`date +%s`
+echo "AS$asn-$port 耗时:$[$end-$start]秒"
+}
+
+if [ $scanmode == 1 ]
+    main
+then
+elif [ $scanmode == 2 ]
+then
+    for i in `cat $filename`
+    do
+        asn=$(echo $i | awk -F: '{print $1}')
+        port=$(echo $i | awk -F: '{print $2}')
+        main
+    done
+elif [ $scanmode == 3 ]
+then
+    echo "正在获取AS列表..."
+    urltext=`curl -A 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.5005.62 Safari/537.36' -sL $url`
+    for i in $urltext
+    do
+        asn=$(echo $i | awk -F: '{print $1}')
+        port=$(echo $i | awk -F: '{print $2}')
+        main
+    done
+fi
