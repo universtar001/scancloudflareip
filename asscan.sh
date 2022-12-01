@@ -344,7 +344,7 @@ else
 fi
 echo "开始检测 AS$asn TCP端口 $port 有效性"
 rm -rf paused.conf
-masscan -p $port -iL asn/$asn-24 --wait=3 --rate=$rate -oL data.txt
+masscan -p $port -iL asn/$asn-24 --wait=3 --rate=$rate -oL data.txt --interface wgcf
 echo "开始检测 AS$asn REAL IP有效性"
 cloudflarerealip
 echo "开始检测 AS$asn RTT信息"
